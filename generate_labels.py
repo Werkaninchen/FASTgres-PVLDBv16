@@ -12,6 +12,116 @@ from hint_sets import HintSet
 from tqdm import tqdm
 
 
+def get_best_hint_single_static(path, query, conn_str, query_dict, reduced):
+
+    iteration_list = []
+
+    for i in range(len(HintSet.operators)):
+        iteration_list.append(2**i)
+    # PG default
+    timeout = u.evaluate_hinted_query(path, query, HintSet(32), conn_str, 300)
+    if timeout == None:
+        timeout = 200
+    best_hint_time = timeout
+    best_hint = 32
+
+    hint_set_evaluations = query_dict[query]
+    hint_set_evaluations["32"] = timeout
+    query_dict[query] = hint_set_evaluations
+    # timeout factor
+    timeout = timeout * 1.5
+
+    print("Evaluating Hint Set List: {}".format(iteration_list))
+
+    for j in reversed(iteration_list):
+        print("Evaluating Hint Set {}".format(j))
+        if j in query_dict[query]:
+            print('Found query entry')
+            query_hint_time = query_dict[query][j]
+            if query_hint_time < best_hint_time:
+                best_hint = j
+                best_hint_time = query_hint_time
+            continue
+        else:
+            print('Evaluating Query')
+            query_hint_time = u.evaluate_hinted_query(
+                path, query, HintSet(j), conn_str, timeout)
+
+        if query_hint_time is None:
+            hint_set_evaluations = query_dict[query]
+            hint_set_evaluations[j] = timeout
+            query_dict[query] = hint_set_evaluations
+            print("Setting query: {} to time: {}".format(query, timeout))
+        else:
+            hint_set_evaluations = query_dict[query]
+            hint_set_evaluations[j] = query_hint_time
+            query_dict[query] = hint_set_evaluations
+            if query_hint_time < best_hint_time:
+                best_hint = j
+                best_hint_time = query_hint_time
+                print("Setting best hint to: {}".format(best_hint))
+            print("Setting query: {} to time: {}".format(query, query_hint_time))
+
+    query_dict[query]['opt'] = best_hint
+    return query_dict
+
+
+def get_best_hint_single(path, query, conn_str, query_dict, reduced):
+    # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
+    timeout = 300
+    best_hint = None
+
+    if reduced:
+        to_switch_off = [32, 16, 8]
+        iteration_list = list(sorted(get_combinations(to_switch_off)))
+        iteration_list = [int(_) for _ in iteration_list]
+    # else:
+    #     iteration_list = [((2**len(HintSet.operators))-1) - (2**i)
+    #                       for i in range(len(HintSet.operators))]
+    #     iteration_list.append((2**len(HintSet.operators))-1)
+
+    else:
+        iteration_list = [2**i for i in range(len(HintSet.operators))]
+
+    print("Evaluating Hint Set List: {}".format(iteration_list))
+
+    for hint_set_int in reversed(iteration_list):
+        print("Evaluating Hint Set {}".format(hint_set_int))
+        if hint_set_int in query_dict[query].keys():
+            print('Found query entry')
+            query_hint_time = query_dict[query][hint_set_int]
+            if timeout is None or query_hint_time < timeout:
+                timeout = query_hint_time
+                best_hint = hint_set_int
+            print('Found query but timed out')
+            continue
+        else:
+            print('Evaluating Query')
+            hint_set = HintSet(hint_set_int)
+            query_hint_time = u.evaluate_hinted_query(
+                path, query, hint_set, conn_str, timeout)
+
+        if query_hint_time is None:
+            # timed out queries can not be counted
+            print('Timed out query')
+            continue
+        else:
+            # update dictionary
+            hint_set_evaluations = query_dict[query]
+            hint_set_evaluations[hint_set_int] = query_hint_time
+            query_dict[query] = hint_set_evaluations
+
+            # update timeout
+            if timeout is None or query_hint_time < timeout:
+                timeout = query_hint_time
+                best_hint = hint_set_int
+
+        print('Adjusted Timeout with Query: {}, Hint Set: {}, Time: {}'
+              .format(query, u.int_to_binary(hint_set_int), query_hint_time))
+    query_dict[query]['opt'] = best_hint
+    return query_dict
+
+
 def get_combinations(to_switch_off: list):
     temp = {1: True, 0: False}
     bin_comb = list(itertools.product([0, 1], repeat=len(to_switch_off)))
@@ -36,7 +146,8 @@ def get_best_hint_set_static(path, query, conn_str, query_dict, reduced):
 
     for j in range(2 ** len(HintSet.operators)-1):
         j = (2 ** len(HintSet.operators) - 2) - j
-        print("Evaluating Hint Set {}/ {}".format(j, (2 ** len(HintSet.operators)) - 2))
+        print("Evaluating Hint Set {}/ {}".format(j,
+              (2 ** len(HintSet.operators)) - 2))
         if j in query_dict[query]:
             print('Found query entry')
             query_hint_time = query_dict[query][j]
@@ -46,7 +157,8 @@ def get_best_hint_set_static(path, query, conn_str, query_dict, reduced):
             continue
         else:
             print('Evaluating Query')
-            query_hint_time = u.evaluate_hinted_query(path, query, HintSet(j), conn_str, timeout)
+            query_hint_time = u.evaluate_hinted_query(
+                path, query, HintSet(j), conn_str, timeout)
 
         if query_hint_time is None:
             hint_set_evaluations = query_dict[query]
@@ -92,7 +204,8 @@ def get_best_hint_set(path, query, conn_str, query_dict, reduced):
         else:
             print('Evaluating Query')
             hint_set = HintSet(hint_set_int)
-            query_hint_time = u.evaluate_hinted_query(path, query, hint_set, conn_str, timeout)
+            query_hint_time = u.evaluate_hinted_query(
+                path, query, hint_set, conn_str, timeout)
 
         if query_hint_time is None:
             # timed out queries can not be counted
@@ -115,7 +228,7 @@ def get_best_hint_set(path, query, conn_str, query_dict, reduced):
     return query_dict
 
 
-def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduced: bool):
+def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduced: bool, single: bool):
     queries = u.get_queries(path)
     for i in range(len(queries)):
         query = queries[i]
@@ -132,9 +245,19 @@ def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduc
 
         if static_timeout:
             print("Using static evaluation")
-            query_dict = get_best_hint_set_static(path, query, conn_str, query_dict, reduced)
+            if single:
+                query_dict = get_best_hint_single_static(
+                    path, query, conn_str, query_dict, reduced)
+            else:
+                query_dict = get_best_hint_set_static(
+                    path, query, conn_str, query_dict, reduced)
         else:
-            query_dict = get_best_hint_set(path, query, conn_str, query_dict, reduced)
+            if single:
+                query_dict = get_best_hint_single(
+                    path, query, conn_str, query_dict, reduced)
+            else:
+                query_dict = get_best_hint_set(
+                    path, query, conn_str, query_dict, reduced)
 
         if strategy == 'strict':
             print('\nSaving evaluation')
@@ -151,19 +274,26 @@ def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduc
 
 if __name__ == "__main__":
     print("Using label gen version 1.08 - Reduced Support, Standard Timeout 5min")
-    parser = argparse.ArgumentParser(description="Generate physical operator labels for input queries and save to json")
-    parser.add_argument("queries", default=None, help="Directory in which .sql-queries are located")
-    parser.add_argument("-o", "--output", default=None, help="Output dictionary save name")
+    parser = argparse.ArgumentParser(
+        description="Generate physical operator labels for input queries and save to json")
+    parser.add_argument("queries", default=None,
+                        help="Directory in which .sql-queries are located")
+    parser.add_argument("-o", "--output", default=None,
+                        help="Output dictionary save name")
     parser.add_argument("-s", "--strategy", default="interval", help="Save strategy during evaluation, strict will save"
-                                                                     " after each adjustment, interval after a certain "
+                        " after each adjustment, interval after a certain "
                                                                      "amount of adjustments, and lazy at the end of "
                                                                      "the evaluation. Lazy is not recommended as there"
                                                                      " may be a substantial loss of data upon "
                                                                      "encountering unexpected errors.")
-    parser.add_argument("-db", "--database", default=None, help="Database string in psycopg2 format.")
+    parser.add_argument("-1", "--single", default="interval",
+                        help="use single hints only.")
+    parser.add_argument("-db", "--database", default=None,
+                        help="Database string in psycopg2 format.")
     parser.add_argument("-c", "--complete", default=False, help="Builds result dictionary using a static timeout of "
                                                                 "1.5 times the pg default execution time.")
-    parser.add_argument("-r", "--reduced", default=False, help="Info to use reduced hints")
+    parser.add_argument("-r", "--reduced", default=False,
+                        help="Info to use reduced hints")
     args = parser.parse_args()
 
     query_path = args.queries
@@ -201,22 +331,25 @@ if __name__ == "__main__":
         raise ValueError('Evaluation strategy not recognized')
 
     args_complete = args.complete
-    if args_complete not in ["True", "False"]:
-        raise ValueError("Complete evaluation option only takes boolean values.")
+
+    # if args_complete not in ["True", "False"]:
+    #     raise ValueError(
+    #         "Complete evaluation option only takes boolean values.")
     args_complete = True if args_complete == "True" else False
     arg_reduced = True if args.reduced == "True" else False
+
     if arg_reduced:
         print('Using reduced sets - 3 joins')
     if args_complete:
         print('Using complete Evaluation')
 
+    arg_single = True if args.single == "True" else False
+
+    if arg_reduced:
+        print('Using sigle hints')
     connection_string = args_db_string
 
-    run(query_path, save_path, connection_string, evaluation_strategy, query_eval_dict, args_complete, arg_reduced)
+    run(query_path, save_path, connection_string, evaluation_strategy,
+        query_eval_dict, args_complete, arg_reduced, arg_single)
 
     print("Finished Label Generation")
-
-
-
-
-

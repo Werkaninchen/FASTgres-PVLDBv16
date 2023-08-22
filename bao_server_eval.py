@@ -6,8 +6,8 @@ import os
 import time
 from tqdm import tqdm
 
-hints = ['enable_hashjoin', 'enable_mergejoin', 'enable_nestloop',
-         'enable_indexscan', 'enable_seqscan', 'enable_indexonlyscan']
+hints = ['enable_parallel_append', 'enable_async_append', 'enable_parallel_hash',
+         'enable_sort', 'enable_hashagg', 'enable_gathermerge']
 
 
 def chunks(lst, n):
@@ -18,8 +18,10 @@ def chunks(lst, n):
 def run_train_query(q, dbi):
     conn, cur = u.establish_connection(dbi)
     cur.execute("SET enable_bao TO ON")  # enable bao in general
-    cur.execute("SET enable_bao_selection TO OFF")  # enable bao to use predicted plans
-    cur.execute("SET enable_bao_rewards TO ON")  # enable bao to collect training data
+    # enable bao to use predicted plans
+    cur.execute("SET enable_bao_selection TO OFF")
+    # enable bao to collect training data
+    cur.execute("SET enable_bao_rewards TO ON")
     cur.execute("SET bao_num_arms TO 5")
     cur.execute("SET statement_timeout TO 2400000")
     try:
@@ -72,7 +74,8 @@ def run_test_query(q, dbi):
     if res_line is None:
         raise ValueError('Something went wrong, no bao hint was found')
     if 'ON' in res_line:
-        raise ValueError('Bao hint was switched on, this is unexpected behavior and must be caught: ', res_line)
+        raise ValueError(
+            'Bao hint was switched on, this is unexpected behavior and must be caught: ', res_line)
 
     # every hint that has been shown to be switched off, is set to 0
     pred = [1]*6
@@ -108,7 +111,8 @@ def evaluate_bao(query_dict, read_queries, excluded_train_queries: list, dbi):
     random.Random(seed).shuffle(train_queries)
 
     train_query_range = range(len(train_queries))
-    retrain_chunks = [max(i) for i in chunks([i for i in train_query_range], 25)]
+    retrain_chunks = [max(i)
+                      for i in chunks([i for i in train_query_range], 25)]
     # test_query_range = range(len(test_queries))
     # test_chunks = [max(i) for i in chunks([i for i in test_query_range], 25)]
 
@@ -121,7 +125,8 @@ def evaluate_bao(query_dict, read_queries, excluded_train_queries: list, dbi):
             # we also collect training times for soft comparison of model times
             print('Retraining Model...')
             t0 = time.time()
-            os.system("cd ../BaoForPostgreSQL/bao_server && python baoctl.py --retrain")
+            os.system(
+                "cd ../BaoForPostgreSQL/bao_server && python baoctl.py --retrain")
             os.system("sync")
             training_time += (time.time() - t0)
             print('... done')
@@ -156,13 +161,20 @@ def run():
     print('BAO Evaluation v0.06')
     print('Be sure the BAO Server is up and running!')
     print('After each evaluation it is highly recommended to delete the BAO database as well as its trained model')
-    parser = argparse.ArgumentParser(description="Evaluate BAO on given strategy")
-    parser.add_argument("queries", default=None, help="Query path to train and test in json format.")
-    parser.add_argument("-o", "--output", default=None, help="Output evaluation directory")
-    parser.add_argument("-pt", "--process", default=None, help="path to processing time output.")
-    parser.add_argument("-eq", "--excluded", default=None, help="List of queries to exclude as JSON.")
-    parser.add_argument("-qp", "--querypath", default=None, help="Path to all queries.")
-    parser.add_argument("-dbi", "--databaseinfo", default=None, help="Psycopg2 Database Info.")
+    parser = argparse.ArgumentParser(
+        description="Evaluate BAO on given strategy")
+    parser.add_argument("queries", default=None,
+                        help="Query path to train and test in json format.")
+    parser.add_argument("-o", "--output", default=None,
+                        help="Output evaluation directory")
+    parser.add_argument("-pt", "--process", default=None,
+                        help="path to processing time output.")
+    parser.add_argument("-eq", "--excluded", default=None,
+                        help="List of queries to exclude as JSON.")
+    parser.add_argument("-qp", "--querypath", default=None,
+                        help="Path to all queries.")
+    parser.add_argument("-dbi", "--databaseinfo",
+                        default=None, help="Psycopg2 Database Info.")
 
     args = parser.parse_args()
     q_path = args.queries
@@ -192,7 +204,8 @@ def run():
     excluded_train_queries = []
     if excluded_train_queries_path is not None:
         try:
-            excluded_train_queries = list(u.load_json(excluded_train_queries_path))
+            excluded_train_queries = list(
+                u.load_json(excluded_train_queries_path))
         except:
             print("No excluded Queries found, continuing")
 
@@ -202,7 +215,8 @@ def run():
 
     # saving routine
     u.save_json(prediction_dict, output_path)
-    processing_time_dict = {"setup": setup_time_dict, "train-time": training_time}
+    processing_time_dict = {
+        "setup": setup_time_dict, "train-time": training_time}
     u.save_json(processing_time_dict, pt_path)
     return
 

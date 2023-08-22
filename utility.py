@@ -22,10 +22,10 @@ cfg.read("config.ini")
 dbs = cfg["DBConnections"]
 PG_IMDB = dbs["imdb"]
 PG_STACK_OVERFLOW = dbs["stack_overflow"]
-PG_STACK_OVERFLOW_REDUCED_16 = dbs["stack_overflow_reduced_16"]
-PG_STACK_OVERFLOW_REDUCED_13 = dbs["stack_overflow_reduced_13"]
-PG_STACK_OVERFLOW_REDUCED_10 = dbs["stack_overflow_reduced_10"]
-PG_TPC_H = dbs["tpc_h"]
+# PG_STACK_OVERFLOW_REDUCED_16 = dbs["stack_overflow_reduced_16"]
+# PG_STACK_OVERFLOW_REDUCED_13 = dbs["stack_overflow_reduced_13"]
+# PG_STACK_OVERFLOW_REDUCED_10 = dbs["stack_overflow_reduced_10"]
+PG_TPC_H = dbs["tpch"]
 
 operator_dictionary = {
     "eq": [0, 0, 1],
@@ -44,7 +44,8 @@ def min_max_encode(min_value, max_value, value_to_encode, offset):
     value_to_encode = min(value_to_encode, max_value)
     value_to_encode = max(value_to_encode, min_value)
     adjusted_min = min_value - offset
-    encoding = round((value_to_encode - adjusted_min) / (max_value - adjusted_min), 8)
+    encoding = round((value_to_encode - adjusted_min) /
+                     (max_value - adjusted_min), 8)
     return encoding
 
 
@@ -211,7 +212,8 @@ def build_db_min_max(db_string: str) -> dict:
         col_dict = dict()
         for column, d_type in cursor.fetchall():
             if d_type in ['integer', 'timestamp without time zone', 'date', 'numeric']:
-                cursor.execute("SELECT min({}), max({}) FROM {};".format(column, column, t))
+                cursor.execute(
+                    "SELECT min({}), max({}) FROM {};".format(column, column, t))
                 mm_val = list(cursor.fetchall()[0])
                 col_dict[column] = mm_val
             else:
@@ -227,7 +229,8 @@ def build_label_encoders(db_string: str) -> tree:
     unhandled = set()
     label_encoders = tree()
     conn, cursor = establish_connection(db_string)
-    cursor.execute("""SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'""")
+    cursor.execute(
+        """SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'""")
     for table in cursor.fetchall():
         t = table[0]
         cursor.execute("SELECT column_name, data_type FROM information_schema.columns  WHERE table_name = '{}';"
@@ -253,7 +256,8 @@ def build_label_encoders(db_string: str) -> tree:
                 if skip:
                     continue
 
-                cursor.execute("SELECT {}, COUNT({}) FROM {} GROUP BY {}".format(column, column, t, column))
+                cursor.execute("SELECT {}, COUNT({}) FROM {} GROUP BY {}".format(
+                    column, column, t, column))
                 filter_list = list()
                 for filter_value, cardinality in cursor.fetchall():
                     filter_list.append((filter_value, cardinality))
@@ -321,8 +325,10 @@ def evaluate_hinted_query(path: str, query: str, hint_set: HintSet, connection_s
             print('Adjusting timeout from {}'.format(timeout))
             timeout = 0.1
         # set and execute timeout to avoid unnecessary computation
+
         # timeout is in milliseconds: round up and cast to int
-        time_out = "SET statement_timeout = '{}ms'".format(int(math.ceil(timeout * 1000)))
+        time_out = "SET statement_timeout = '{}ms'".format(
+            int(math.ceil(timeout * 1000)))
         cur.execute(time_out)
 
     set_hints(hint_set, cur)
@@ -342,7 +348,8 @@ def evaluate_k_times(q_path: str, query: str, hint_set: HintSet, connection_stri
         -> Opt[float]:
     evaluations = list()
     for i in range(k + 1):
-        hint_eval = evaluate_hinted_query(q_path, query, hint_set, connection_string, timeout)
+        hint_eval = evaluate_hinted_query(
+            q_path, query, hint_set, connection_string, timeout)
         if hint_eval is None:
             # forward timeout
             return None
