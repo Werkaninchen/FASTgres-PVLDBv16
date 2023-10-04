@@ -6,7 +6,7 @@ import itertools
 import os
 
 import numpy as np
-
+import heuristic_run
 import utility as u
 from hint_sets import HintSet
 from tqdm import tqdm
@@ -66,34 +66,39 @@ def get_best_hint_single_static(path, query, conn_str, query_dict, reduced):
     return query_dict
 
 
-def get_best_hint_single(path, query, conn_str, query_dict, reduced):
+def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300):
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
-    timeout = 300
     best_hint = None
 
     if reduced:
         to_switch_off = [32, 16, 8]
         iteration_list = list(sorted(get_combinations(to_switch_off)))
         iteration_list = [int(_) for _ in iteration_list]
+    elif hint_override != []:
+        iteration_list = hint_override
     # else:
     #     iteration_list = [((2**len(HintSet.operators))-1) - (2**i)
     #                       for i in range(len(HintSet.operators))]
+
+    #     # add base case all on
     #     iteration_list.append((2**len(HintSet.operators))-1)
 
     else:
         iteration_list = [2**i for i in range(len(HintSet.operators))]
 
     print("Evaluating Hint Set List: {}".format(iteration_list))
-
+    print(timeout)
     for hint_set_int in reversed(iteration_list):
         print("Evaluating Hint Set {}".format(hint_set_int))
-        if hint_set_int in query_dict[query].keys():
+        if str(hint_set_int) in query_dict[query].keys():
             print('Found query entry')
-            query_hint_time = query_dict[query][hint_set_int]
+            query_hint_time = query_dict[query][str(hint_set_int)]
+            print(query_hint_time)
             if timeout is None or query_hint_time < timeout:
                 timeout = query_hint_time
                 best_hint = hint_set_int
-            print('Found query but timed out')
+            else:
+                print('Found query but timed out')
             continue
         else:
             print('Evaluating Query')
@@ -241,8 +246,6 @@ def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduc
             # Evaluate like default
             pass
 
-        print('\nEvaluating query: {}, {} / {}'.format(query, i+1, len(queries)))
-
         if static_timeout:
             print("Using static evaluation")
             if single:
@@ -272,7 +275,7 @@ def run(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduc
     return
 
 
-if __name__ == "__main__":
+def main():
     print("Using label gen version 1.08 - Reduced Support, Standard Timeout 5min")
     parser = argparse.ArgumentParser(
         description="Generate physical operator labels for input queries and save to json")
@@ -349,7 +352,12 @@ if __name__ == "__main__":
         print('Using sigle hints')
     connection_string = args_db_string
 
-    run(query_path, save_path, connection_string, evaluation_strategy,
-        query_eval_dict, args_complete, arg_reduced, arg_single)
+    heuristic_run.run_heuristic(query_path, save_path, connection_string, evaluation_strategy,
+                                query_eval_dict, args_complete, arg_reduced, arg_single)
 
     print("Finished Label Generation")
+
+
+if __name__ == "__main__":
+
+    main()

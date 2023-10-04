@@ -29,21 +29,22 @@ def reset_hints(cursor):
 
 class HintSet:
 
-    operators = ['enable_async_append',  # 8192
-                 'enable_parallel_append',  # 4096
-                 'enable_parallel_hash',  # 2048
-                 'enable_sort',  # 1024
-                 'enable_bitmapscan',  # 512
-                 'enable_memoize',  # 256
-                 "enable_gathermerge",  # 128
-                 "enable_hashagg",  # 64
-                 "enable_incremental_sort",  # 32
-                 "enable_material"  # 16,
-                 "enable_partition_pruning",  # 8
-                 "enable_partitionwise_join",  # 4
-                 "enable_partitionwise_aggregate",  # 2
-                 "enable_tidscan",  # 1
-                 ]
+    operators = [
+        'enable_async_append',  # 8192
+        'enable_parallel_append',  # 4096
+        'enable_parallel_hash',  # 2048
+        'enable_sort',  # 1024
+        'enable_bitmapscan',  # 512
+        'enable_memoize',  # 256
+        "enable_gathermerge",  # 128
+        "enable_hashagg",  # 64
+        "enable_incremental_sort",  # 32
+        "enable_material",  # 16,
+        "enable_partition_pruning",  # 8
+        "enable_partitionwise_join",  # 4
+        "enable_partitionwise_aggregate",  # 2
+        "enable_tidscan",  # 1
+    ]
 
     def __init__(self, default: int = None):
         self.enable_async_append = True
