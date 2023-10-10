@@ -82,6 +82,9 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
 
                 if (idx + idx2) in [2**i for i in range(len(HintSet.operators))]:
                     continue
+
+                if (idx + idx2) >= 2**len(HintSet.operators):
+                    continue
                 # set timeout to best run
 
                 if queries[i] in max_run_time:
@@ -166,7 +169,7 @@ def hintsAreStable(hint_list: list, old_list: list, n: int):
     if old_list != hint_list:
         return (False, hint_list, 0)
     # stable if hint list didn't change for more than n iterations
-    if n > 15 and old_list == hint_list:
+    if n >= 10:
         return (True, old_list, n+1)
     return (False, old_list, n+1)
 
@@ -174,6 +177,10 @@ def hintsAreStable(hint_list: list, old_list: list, n: int):
 # all of these will be improvements over base as it's checked first and then used as timeout
 def removeHints(query_dict: dict, hint_list: list):
     print("removing hints")
+
+    if len(hint_list) < 5:
+        print("no hints removed")
+        return hint_list
 
     # hint list is already sorted by speedup per occurance
 
@@ -184,7 +191,7 @@ def removeHints(query_dict: dict, hint_list: list):
     # sum up hint occurence over queries
     for queryIdx in query_dict:
         for i in hint_list:
-            if not i in query_dict[queryIdx] and not str(i) in query_dict[queryIdx]:
+            if not i in query_dict[queryIdx]:
                 continue
             if not i in new_hint_set:
                 new_hint_set[i] = {
@@ -203,8 +210,10 @@ def removeHints(query_dict: dict, hint_list: list):
             continue
         speedups.append(new_hint_set[i]["speedup"]/new_hint_set[i]["n"])
 
+    print(speedups)
     limit = statistics.mean(speedups)
-
+    print(statistics.stdev(speedups))
+    # if statistics.stdev(speedups) > 1
     for el in new_hint_set:
         if new_hint_set[el]["speedup"] >= limit:
             new_hint_list.append(el)
