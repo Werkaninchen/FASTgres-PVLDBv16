@@ -79,7 +79,7 @@ def excedesSpeedTheshhold(query_dict: dict, queryIdx: str, hintSet: int, threshh
     return improvement >= threshhold
 
 
-def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300):
+def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300, threshold=1000):
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
     best_hint = None
 
@@ -99,8 +99,6 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
     else:
         iteration_list = [2**i for i in range(len(HintSet.operators))]
 
-    print("Evaluating Hint Set List: {}".format(iteration_list))
-    print(timeout)
     for hint_set_int in reversed(iteration_list):
         print("Evaluating Hint Set {}".format(hint_set_int))
         if str(hint_set_int) in query_dict[query].keys():
@@ -114,7 +112,6 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
                 print('Found query but timed out')
             continue
         else:
-            print('Evaluating Query')
             hint_set = HintSet(hint_set_int)
             query_hint_time = u.evaluate_hinted_query(
                 path, query, hint_set, conn_str, timeout)
@@ -136,8 +133,8 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
         print('Adjusted Timeout with Query: {}, Hint Set: {}, Time: {}'
               .format(query, u.int_to_binary(hint_set_int), query_hint_time))
         # if faster than 1.5x base break
-        if excedesSpeedTheshhold(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=2.5):
-            print("exceded 2.5x thresh")
+        if excedesSpeedTheshhold(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=threshold):
+            print("exceded ", threshold, "x threshold")
             break
     query_dict[query]['opt'] = best_hint
     return query_dict

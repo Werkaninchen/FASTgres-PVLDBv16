@@ -8,7 +8,7 @@ import statistics
 import math
 
 
-def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduced: bool, single: bool):
+def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduced: bool, single: bool, threshold: float):
     queries = u.get_queries(path)
 
     random.shuffle(queries)
@@ -39,7 +39,7 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
             hint_list.append((2**len(HintSet.operators))-1)
 
         query_dict = gl.get_best_hint_single(
-            path, query, conn_str, query_dict, reduced, hint_list)
+            path, query, conn_str, query_dict, reduced, hint_list, threshold=threshold)
         if 2**len(HintSet.operators)-1 in hint_list:
             hint_list.remove((2**len(HintSet.operators))-1)
         if strategy == 'strict':
@@ -60,7 +60,7 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
         #     continue
 
         hint_list = orderBySpeed(query_dict, hint_list)
-    print('\nSaving evaluation')
+
     u.save_json(query_dict, save)
     # TODO: decide if calling remove hints is advantageous
     # run for combinations
