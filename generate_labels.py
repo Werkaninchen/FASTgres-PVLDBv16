@@ -4,11 +4,12 @@
 import argparse
 import itertools
 import os
+import speedup
 
 import numpy as np
 import heuristic_run
 import utility as u
-from hint_sets import HintSet
+from hint_set import HintSet
 from tqdm import tqdm
 
 
@@ -66,6 +67,18 @@ def get_best_hint_single_static(path, query, conn_str, query_dict, reduced):
     return query_dict
 
 
+def excedesSpeedTheshhold(query_dict: dict, queryIdx: str, hintSet: int, threshhold: float):
+    base_dict = speedup.getBaseFromDict(query_dict)
+
+    if queryIdx == 2 ** len(HintSet.operators)-1:
+        return False
+
+    improvement = speedup.getSpeedupPerc(
+        base_dict, queryIdx, query_dict[queryIdx][hintSet])
+    print(improvement)
+    return improvement >= threshhold
+
+
 def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300):
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
     best_hint = None
@@ -93,7 +106,7 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
         if str(hint_set_int) in query_dict[query].keys():
             print('Found query entry')
             query_hint_time = query_dict[query][str(hint_set_int)]
-            print(query_hint_time)
+
             if timeout is None or query_hint_time < timeout:
                 timeout = query_hint_time
                 best_hint = hint_set_int
@@ -110,19 +123,22 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
             # timed out queries can not be counted
             print('Timed out query')
             continue
-        else:
-            # update dictionary
-            hint_set_evaluations = query_dict[query]
-            hint_set_evaluations[hint_set_int] = query_hint_time
-            query_dict[query] = hint_set_evaluations
 
-            # update timeout
-            if timeout is None or query_hint_time < timeout:
-                timeout = query_hint_time
-                best_hint = hint_set_int
+            # update dictionary
+
+        query_dict[query][hint_set_int] = query_hint_time
+
+        # update timeout
+        if timeout is None or query_hint_time < timeout:
+            timeout = query_hint_time
+            best_hint = hint_set_int
 
         print('Adjusted Timeout with Query: {}, Hint Set: {}, Time: {}'
               .format(query, u.int_to_binary(hint_set_int), query_hint_time))
+        # if faster than 1.5x base break
+        if excedesSpeedTheshhold(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=2.5):
+            print("exceded 2.5x thresh")
+            break
     query_dict[query]['opt'] = best_hint
     return query_dict
 
@@ -180,6 +196,55 @@ def get_best_hint_set_static(path, query, conn_str, query_dict, reduced):
                 print("Setting best hint to: {}".format(best_hint))
             print("Setting query: {} to time: {}".format(query, query_hint_time))
 
+    query_dict[query]['opt'] = best_hint
+    return query_dict
+
+
+def get_best_hint_set_et(path, query, conn_str, query_dict, reduced):
+    # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
+    timeout = 300
+    best_hint = None
+
+    if reduced:
+        to_switch_off = [32, 16, 8]
+        iteration_list = list(sorted(get_combinations(to_switch_off)))
+        iteration_list = [int(_) for _ in iteration_list]
+    else:
+        iteration_list = [i for i in range(2 ** len(HintSet.operators))]
+
+    for hint_set_int in reversed(iteration_list):
+        print("Evaluating Hint Set {}".format(hint_set_int))
+        if hint_set_int in query_dict[query].keys():
+            print('Found query entry')
+            query_hint_time = query_dict[query][hint_set_int]
+            if timeout is None or query_hint_time < timeout:
+                timeout = query_hint_time
+                best_hint = hint_set_int
+            print('Found query but timed out')
+            continue
+        else:
+            print('Evaluating Query')
+            hint_set = HintSet(hint_set_int)
+            query_hint_time = u.evaluate_hinted_query(
+                path, query, hint_set, conn_str, timeout)
+
+        if query_hint_time is None:
+            # timed out queries can not be counted
+            print('Timed out query')
+            continue
+        else:
+            # update dictionary
+            hint_set_evaluations = query_dict[query]
+            hint_set_evaluations[hint_set_int] = query_hint_time
+            query_dict[query] = hint_set_evaluations
+
+            # update timeout
+            if timeout is None or query_hint_time < timeout:
+                timeout = query_hint_time
+                best_hint = hint_set_int
+
+        print('Adjusted Timeout with Query: {}, Hint Set: {}, Time: {}'
+              .format(query, u.int_to_binary(hint_set_int), query_hint_time))
     query_dict[query]['opt'] = best_hint
     return query_dict
 
@@ -305,6 +370,8 @@ def main():
     args_db_string = args.database
     if args_db_string == "imdb":
         args_db_string = u.PG_IMDB
+    elif args_db_string == "job":
+        args_db_string = u.PG_IMDB
     elif args_db_string == "stack":
         args_db_string = u.PG_STACK_OVERFLOW
     elif args_db_string == "stack-2016":
@@ -351,6 +418,9 @@ def main():
     if arg_reduced:
         print('Using sigle hints')
     connection_string = args_db_string
+
+    # run(query_path, save_path, connection_string, evaluation_strategy,
+    #     query_eval_dict, args_complete, arg_reduced, arg_single)
 
     heuristic_run.run_heuristic(query_path, save_path, connection_string, evaluation_strategy,
                                 query_eval_dict, args_complete, arg_reduced, arg_single)

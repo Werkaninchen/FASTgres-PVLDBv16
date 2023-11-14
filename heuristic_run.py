@@ -1,5 +1,5 @@
 import utility as u
-from hint_sets import HintSet
+from hint_set import HintSet
 import generate_labels as gl
 import speedup
 
@@ -18,7 +18,7 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
     # hintList = [i for i in range(2 ** len(HintSet.operators))]
 
-    hint_list = [2**i for i in range(len(HintSet.operators))]
+    hint_list = [i for i in range(2 ** len(HintSet.operators))]
     # hint_list = [1024, 4, 64, 2]
     old_list = []
     n = 0
@@ -51,13 +51,14 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
                 u.save_json(query_dict, save)
 
         # remove hints every 10 iterations, 3 is not fixed yet
-        if i > 0 and i % 10 == 0:
-            hint_list = removeHints(query_dict, hint_list)
+        # if i > 0 and i % 10 == 0:
+        #     hint_list = removeHints(query_dict, hint_list)
 
-        stable, old_list, n = hintsAreStable(hint_list, old_list, n)
+        # stable, old_list, n = hintsAreStable(hint_list, old_list, n)
         # break early to allow combinations of hint in next step
-        if stable or len(hint_list) <= 5:
-            break
+        # if stable or len(hint_list) <= 5:
+        #     continue
+
         hint_list = orderBySpeed(query_dict, hint_list)
     print('\nSaving evaluation')
     u.save_json(query_dict, save)
@@ -66,68 +67,6 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
     # Take best hints and combine them 2d
     new_hint_list = []
     max_run_time = {}
-    for i in range(len(queries)):
-
-        max = 300
-
-        if str(2**len(HintSet.operators)-1) in query_dict[queries[i]]:
-            max = query_dict[queries[i]][str(
-                2**len(HintSet.operators)-1)]
-        if 2**len(HintSet.operators)-1 in query_dict[queries[i]]:
-            max = query_dict[queries[i]][
-                2**len(HintSet.operators)-1]
-
-        for idx in hint_list:
-            for idx2 in hint_list:
-
-                if (idx + idx2) in [2**i for i in range(len(HintSet.operators))]:
-                    continue
-
-                if (idx + idx2) >= 2**len(HintSet.operators):
-                    continue
-                # set timeout to best run
-
-                if queries[i] in max_run_time:
-                    max = max_run_time[queries[i]]
-                a = 300
-                b = 300
-
-                if str(idx) in query_dict[queries[i]]:
-                    a = query_dict[queries[i]][str(idx)]
-                if str(idx2) in query_dict[queries[i]]:
-                    b = query_dict[queries[i]][str(idx2)]
-                if idx in query_dict[queries[i]]:
-                    a = query_dict[queries[i]][idx]
-                if idx2 in query_dict[queries[i]]:
-                    b = query_dict[queries[i]][idx2]
-                max_run_time[queries[i]] = min(max, a, b)
-                new_hint_list.append(idx+idx2)
-
-    hint_list = list(set(new_hint_list))
-
-    for i in range(len(queries)):
-        query = queries[i]
-        # hint list already orderd by speed because of line 40
-        print('\nEvaluating query: {}, {} / {}'.format(query, i+1, len(queries)))
-
-        query_dict = gl.get_best_hint_single(
-            path, query, conn_str, query_dict, reduced, hint_list, max_run_time[queries[i]])
-
-        if strategy == 'strict':
-            print('\nSaving evaluation')
-            u.save_json(query_dict, save)
-        elif strategy == 'interval':
-            if i % 20 == 0:
-                print('\nSaving evaluation')
-                u.save_json(query_dict, save)
-        if i > 0 and i % 10 == 0:
-            hint_list = removeHints(query_dict, hint_list)
-
-        stable, old_list, n = hintsAreStable(hint_list, old_list, n)
-        if stable:
-            break
-
-        hint_list = orderBySpeed(query_dict, hint_list)
 
     # TODO run the reast of the queries by combination
     # TODO test if list is stable/ a good improvement is already found
@@ -147,7 +86,7 @@ def orderBySpeed(query_dict: dict, hint_list: list):
             if not i in query_dict[queryIdx]:
                 continue
 
-            improvement = speedup.getSpeedup(
+            improvement = speedup.getSpeedupPerc(
                 base_dict, queryIdx, query_dict[queryIdx][i])
 
             new_hint_set[i] = {

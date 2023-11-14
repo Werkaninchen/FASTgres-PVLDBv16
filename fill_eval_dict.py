@@ -2,7 +2,7 @@
 import utility as u
 import argparse
 
-from hint_sets import HintSet
+from hint_set import HintSet
 from tqdm import tqdm
 
 
@@ -49,7 +49,8 @@ def update_optimal_solution(eval_dict):
             if hint_set == "opt":
                 continue
             if eval_dict[query_name][str(hint_set)] < opt_time:
-                print(f"Fixing optimal set {query_name}: {opt_set} -> {hint_set}")
+                print(
+                    f"Fixing optimal set {query_name}: {opt_set} -> {hint_set}")
                 eval_dict[query_name]["opt"] = hint_set
     return eval_dict
 
@@ -57,7 +58,8 @@ def update_optimal_solution(eval_dict):
 def fill_dict(fill_elements: FillingElements, save_path):
     print(f"Detected {len(fill_elements.predictions)} dictionaries to fill")
     for prediction_dict in tqdm(fill_elements.predictions):
-        fill_elements.eval_dict = fill_single_dict(fill_elements, prediction_dict)
+        fill_elements.eval_dict = fill_single_dict(
+            fill_elements, prediction_dict)
         # fill_elements.eval_dict = update_optimal_solution(fill_elements.eval_dict)
         u.save_json(fill_elements.eval_dict, save_path)
         print("Done Saving.")
@@ -105,7 +107,8 @@ def fill_single_dict(fill_elements: FillingElements, prediction_dict):
                 pass
 
             eval_hint_set = HintSet(hint_set_int)
-            pred_eval = u.evaluate_hinted_query(q_path, query, eval_hint_set, fill_elements.db_info, timeout)
+            pred_eval = u.evaluate_hinted_query(
+                q_path, query, eval_hint_set, fill_elements.db_info, timeout)
 
             if pred_eval is None:
                 # unneeded cast to be safe
@@ -117,16 +120,21 @@ def fill_single_dict(fill_elements: FillingElements, prediction_dict):
 
 def run():
     print('Using Dictionary Filling v.0.1.0 - Revised')
-    parser = argparse.ArgumentParser(description="Evaluate Fastgres on given strategy")
-    parser.add_argument("eval", default=None, help="Evaluation dictionary path")
+    parser = argparse.ArgumentParser(
+        description="Evaluate Fastgres on given strategy")
+    parser.add_argument("eval", default=None,
+                        help="Evaluation dictionary path")
     parser.add_argument("-p", "--prediction", default=None,
                         help="Path to the prediction dict to consider")
     parser.add_argument("-b", "--bao", default=False,
                         help="Additionally evaluates five Hint Sets from BAO if not done already. "
                              "Can be set to True or False")
-    parser.add_argument("-a", "--addition", default=None, help="Path to additional hints to consider (JSON-list)")
-    parser.add_argument("-qp", "--querypath", default="stack", help="Queries to use. stack or job.")
-    parser.add_argument("-db", "--dbinfo", default="stack", help="Database to use. Currently supports stack and imdb")
+    parser.add_argument("-a", "--addition", default=None,
+                        help="Path to additional hints to consider (JSON-list)")
+    parser.add_argument("-qp", "--querypath", default="stack",
+                        help="Queries to use. stack or job.")
+    parser.add_argument("-db", "--dbinfo", default="stack",
+                        help="Database to use. Currently supports stack and imdb")
     parser.add_argument("-f", "--format", default="classic", help="Which format the predictions are. "
                                                                   "classic: Query -> Hint Set json or "
                                                                   "multi: Context -> Split -> Query -> Prediction pkl")
@@ -166,7 +174,8 @@ def run():
     elif args_query_path == "tpch":
         args_q_path = "queries/tpch/"
     else:
-        raise ValueError("Query path input -qp -> {} not recognized".format(args_query_path))
+        raise ValueError(
+            "Query path input -qp -> {} not recognized".format(args_query_path))
 
     args_format = args.format
     if args_format != "classic" and args_format != "multi":

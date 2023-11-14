@@ -10,7 +10,7 @@ import pandas as pd
 import psycopg2 as pg
 
 from tqdm import tqdm
-from hint_sets import HintSet, set_hints
+from hint_set import HintSet, set_hints
 from typing import Optional as Opt
 from mo_sql_parsing import parse
 from configparser import ConfigParser

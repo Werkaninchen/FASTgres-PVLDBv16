@@ -8,7 +8,7 @@ import utility as u
 from copy import deepcopy
 from alive_progress import alive_it
 from sklearn.ensemble import GradientBoostingClassifier
-from hint_sets import HintSet
+from hint_set import HintSet
 from featurize import encode_query
 from query import Query
 from context_heuristic import merge_context_queries
@@ -53,15 +53,18 @@ class QueryObserver:
             experienced_time.append(self.experience[query_name]["time"])
         new_timeout = np.percentile(experienced_time, self.relative)
         self.timeout = max(self.absolute, new_timeout)
-        print("Updated context: {} timeout: {} -> {}".format(self.context, old_timeout, new_timeout))
+        print("Updated context: {} timeout: {} -> {}".format(self.context,
+              old_timeout, new_timeout))
         return
 
     def train(self) -> None:
         new_model = GradientBoostingClassifier(n_estimators=self.estimators,
                                                max_depth=self.depth,
                                                random_state=self.seed)
-        x_values = [self.experience[query_name]["featurization"] for query_name in self.experience]
-        y_values = [self.experience[query_name]["label"] for query_name in self.experience]
+        x_values = [self.experience[query_name]["featurization"]
+                    for query_name in self.experience]
+        y_values = [self.experience[query_name]["label"]
+                    for query_name in self.experience]
         new_model = new_model.fit(x_values, y_values)
         # new models are not deployed right away since they might be subject of cooldown restrictions
         # unless no initial model is present
@@ -86,7 +89,8 @@ class QueryObserver:
     def move_critical_to_experience(self) -> float:
         labeling_time = 0.0
         for query_name in self.critical:
-            self.experience[query_name]["featurization"] = deepcopy(self.critical[query_name]["featurization"])
+            self.experience[query_name]["featurization"] = deepcopy(
+                self.critical[query_name]["featurization"])
             self.experience[query_name]["label"] = self.critical[query_name]["label"]
             self.experience[query_name]["time"] = self.critical[query_name]["time"]
             labeling_time += self.critical[query_name]["time"]
@@ -112,9 +116,11 @@ class QueryObserver:
         try:
             result_time = self.archive[query_name][str(prediction)]
         except KeyError:
-            print("Defaulting to pg evaluation, hint set: {} should be caught".format(prediction))
+            print("Defaulting to pg evaluation, hint set: {} should be caught".format(
+                prediction))
             # no archive info found -> manual eval in server | for client side eval we need all predictions
-            result_time = u.evaluate_hinted_query(self.path, query_name, hint_set, self.db_string, self.timeout)
+            result_time = u.evaluate_hinted_query(
+                self.path, query_name, hint_set, self.db_string, self.timeout)
             # if learned path is given, this segment will later be saved
             self.archive[query_name][str(prediction)] = result_time
 
@@ -127,9 +133,11 @@ class QueryObserver:
             result_time = self.archive[query_name]["63"]
 
             if self.cooldown <= 0 and self.new_model is None:
-                self.critical[query_name]["featurization"] = deepcopy(query_featurization)
+                self.critical[query_name]["featurization"] = deepcopy(
+                    query_featurization)
                 self.critical[query_name]["label"] = self.archive[query_name]["opt"]
-                self.critical[query_name]["time"] = self.archive[query_name][str(self.archive[query_name]["opt"])]
+                self.critical[query_name]["time"] = self.archive[query_name][str(
+                    self.archive[query_name]["opt"])]
 
                 # we have capacity to train a new model, double check just in case
                 # first we need to move any critical query to our experience
@@ -193,10 +201,12 @@ def label_query(path, query, db_string):
     query_entry = u.tree()
     for j in range(2 ** len(HintSet.operators)):
         j = (2 ** len(HintSet.operators) - 1) - j
-        print("Evaluating Hint Set {}/ {}".format(j, (2 ** len(HintSet.operators)) - 1))
+        print("Evaluating Hint Set {}/ {}".format(j,
+              (2 ** len(HintSet.operators)) - 1))
         print('Evaluating Query')
         hint_set = HintSet(j)
-        query_hint_time = u.evaluate_hinted_query(path, query, hint_set, db_string, timeout)
+        query_hint_time = u.evaluate_hinted_query(
+            path, query, hint_set, db_string, timeout)
 
         if query_hint_time is None:
             print('Timed out query')
@@ -298,7 +308,8 @@ def train_context_model(context_queries, train_queries, context, context_models,
     print("Training Context {} / {}"
           .format(list(context_queries.keys()).index(context) + 1, len(context_queries.keys())))
 
-    context_train_queries = list(sorted(set(context_queries[context]).intersection(set(train_queries))))
+    context_train_queries = list(
+        sorted(set(context_queries[context]).intersection(set(train_queries))))
     if not context_train_queries:
         # No queries -> ignore
         return context_models, 0
@@ -308,17 +319,20 @@ def train_context_model(context_queries, train_queries, context, context_models,
     for query_name in context_train_queries:
         # query = Query(query_name, query_path)
         query = query_object_dict[query_name]
-        f_d = featurize.build_feature_dict(query, db_string, mm_dict, enc_dict, wc_dict, set(), set(), skipped_dict)
+        f_d = featurize.build_feature_dict(
+            query, db_string, mm_dict, enc_dict, wc_dict, set(), set(), skipped_dict)
         f_dict[query_name] = featurize.encode_query(context, f_d, d_type_dict)
 
     experience = u.tree()
     for query_name in context_train_queries:
         experience[query_name]["featurization"] = f_dict[query_name]
         experience[query_name]["label"] = archive[query_name]["opt"]
-        experience[query_name]["time"] = archive[query_name][str(archive[query_name]["opt"])]
+        experience[query_name]["time"] = archive[query_name][str(
+            archive[query_name]["opt"])]
 
     # catch one elementary labels
-    label_uniques = np.unique([experience[query_name]["label"] for query_name in context_train_queries])
+    label_uniques = np.unique([experience[query_name]["label"]
+                              for query_name in context_train_queries])
     if len(label_uniques) == 1:
         context_models[context] = int(label_uniques[0])
         train_time = 0
@@ -355,7 +369,8 @@ def test_query(query_name, merged_contexts, db_string, mm_dict, enc_dict, wc_dic
         prediction = observer
     else:
         if use_cqd:
-            prediction = observer.run_observed_query(query_name, encoded_test_query, context_models)
+            prediction = observer.run_observed_query(
+                query_name, encoded_test_query, context_models)
         else:
             prediction = observer.predict(encoded_test_query)
     forward_time = time.time() - t0
@@ -369,10 +384,12 @@ def evaluate_workload(query_path, seed, archive, enc_dict, mm_dict, wc_dict, p_t
     # load queries
     queries = u.get_queries(query_path)
     # predetermine context
-    context_queries = get_context_queries(queries, query_path, query_object_dict)
+    context_queries = get_context_queries(
+        queries, query_path, query_object_dict)
     # merge if needed
     if not use_context:
-        context_queries, merged_contexts = merge_context_queries(context_queries)
+        context_queries, merged_contexts = merge_context_queries(
+            context_queries)
     else:
         merged_contexts = {key: {key} for key in context_queries}
 
@@ -385,7 +402,8 @@ def evaluate_workload(query_path, seed, archive, enc_dict, mm_dict, wc_dict, p_t
 
     ###################################################################################################################
 
-    print("Training/Testing/All Queries: {} / {} / {}".format(len(train_queries), len(test_queries), len(queries)))
+    print("Training/Testing/All Queries: {} / {} / {}".format(len(train_queries),
+          len(test_queries), len(queries)))
     print("Training contexts")
     training_time = dict()
     for context in alive_it(context_queries):
@@ -419,7 +437,8 @@ def evaluate_workload(query_path, seed, archive, enc_dict, mm_dict, wc_dict, p_t
         for context in context_models:
             model = context_models[context]
             if not isinstance(model, int):
-                critical_queries[model.context] = list(sorted(model.critical_queries))
+                critical_queries[model.context] = list(
+                    sorted(model.critical_queries))
 
         for query_name in alive_it(test_queries):
             # query_obj = Query(query_name, query_path)
@@ -434,7 +453,8 @@ def evaluate_workload(query_path, seed, archive, enc_dict, mm_dict, wc_dict, p_t
 
             feature_dict = featurize.build_feature_dict(query_obj, db_string, mm_dict, enc_dict, wc_dict, unhandled_op,
                                                         unhandled_type, skipped_dict)
-            encoded_test_query = encode_query(context, feature_dict, d_type_dict)
+            encoded_test_query = encode_query(
+                context, feature_dict, d_type_dict)
 
             if isinstance(observer, int):
                 prediction = observer
@@ -451,7 +471,8 @@ def evaluate_workload(query_path, seed, archive, enc_dict, mm_dict, wc_dict, p_t
 def main():
     parser = argparse.ArgumentParser(description="Fastgres Evaluation")
     parser.add_argument("queries", default=None, help="Query Path to evaluate")
-    parser.add_argument("-s", "--seed", default=29, help="Random seed to use for splitting.")
+    parser.add_argument("-s", "--seed", default=29,
+                        help="Random seed to use for splitting.")
     parser.add_argument("-db", "--database", default="imdb", help="Database the given queries should run on. "
                                                                   "Shortcuts imdb, stack exist. "
                                                                   "Databases in the Psycopg2 db string input are "
@@ -463,14 +484,19 @@ def main():
     parser.add_argument("-dbip", "--databaseinfopath", default=None, help="Path to database info in which label "
                                                                           "encoders, min-max dictionaries, and wildcard"
                                                                           " dictionaries are located.")
-    parser.add_argument("-pt", "--percentagetimeout", default=99, help="Percentage timeout to use for CQD.")
-    parser.add_argument("-at", "--absolutetimeout", default=1, help="Absolute timeout to use for CQD.")
-    parser.add_argument("-sd", "--savedir", default=None, help="Save directory in which to save evaluation to.")
-    parser.add_argument("-uc", "--usecontext", default="True", help="Declare usage of context or roll up the workload.")
+    parser.add_argument("-pt", "--percentagetimeout",
+                        default=99, help="Percentage timeout to use for CQD.")
+    parser.add_argument("-at", "--absolutetimeout", default=1,
+                        help="Absolute timeout to use for CQD.")
+    parser.add_argument("-sd", "--savedir", default=None,
+                        help="Save directory in which to save evaluation to.")
+    parser.add_argument("-uc", "--usecontext", default="True",
+                        help="Declare usage of context or roll up the workload.")
     parser.add_argument("-bp", "--baoprediction", default=None, help="Path to bao predictions to use as queries."
                                                                      "If provided, the standard split will be "
                                                                      "overwritten.")
-    parser.add_argument("-qo", "--queryobjects", default=None, help="Path to query object .pkl to shorten eval.")
+    parser.add_argument("-qo", "--queryobjects", default=None,
+                        help="Path to query object .pkl to shorten eval.")
     parser.add_argument("-sp", "--splitpath", default=None, help="Path to split to use (json, 'train', 'test'). "
                                                                  "Overwrites bp.")
     parser.add_argument("-cqd", "--querydetection", default="True", help="Whether to use CQD or not. "
@@ -484,7 +510,8 @@ def main():
                                                                   "Defaults to 100.")
     parser.add_argument("-ed", "--estimatordepth", default=1000, help="Max depth of a single estimator. "
                                                                       "Defaults to 1000.")
-    parser.add_argument("-r", "--restrict", default=False, help="Option to restrict the label space to certain hints.")
+    parser.add_argument("-r", "--restrict", default=False,
+                        help="Option to restrict the label space to certain hints.")
     args = parser.parse_args()
     query_path = args.queries
 
@@ -540,7 +567,8 @@ def main():
     args_wildcard_dict = load_wildcard_dict(args_dbinfo_path)
     # table -> columns | rows
     if os.path.exists(args_dbinfo_path + "skipped_table_columns_stack.json"):
-        args_skipped_dict = u.load_json(args_dbinfo_path + "skipped_table_columns_stack.json")
+        args_skipped_dict = u.load_json(
+            args_dbinfo_path + "skipped_table_columns_stack.json")
     else:
         print("No skipped column dict found, skipping")
         args_skipped_dict = dict()
@@ -555,10 +583,12 @@ def main():
         args_test_queries = args_bao_test_queries
     elif args_split_path is not None and os.path.exists(args_split_path):
         args_split_dict = u.load_json(args_split_path)
-        args_split_train, args_split_test = list(args_split_dict["train"]), list(args_split_dict["test"])
+        args_split_train, args_split_test = list(
+            args_split_dict["train"]), list(args_split_dict["test"])
         args_test_queries = args_split_test
     else:
-        raise ValueError("Either a BAO prediction or a query split dictionary must be provided for comparison.")
+        raise ValueError(
+            "Either a BAO prediction or a query split dictionary must be provided for comparison.")
 
     args_cqd = args.querydetection
     if args_cqd not in ["True", "False"]:
@@ -581,7 +611,8 @@ def main():
         #              1: 'idxo-s'}
         # nl, hash, merge
         hints_to_restrict_to = [8, 32, 16]
-        args_archive_restricted = get_restricted_archive(args_archive, hints_to_restrict_to)
+        args_archive_restricted = get_restricted_archive(
+            args_archive, hints_to_restrict_to)
     else:
         args_archive_restricted = args_archive
 
@@ -594,8 +625,10 @@ def main():
     u.save_pickle(training_time, args_save_path + "training_times.pkl")
     u.save_json(forward_pass_time, args_save_path + "forward_pass_times.json")
     if args_cqd:
-        u.save_json(final_predictions, args_save_path + "final_predictions.json")
-        u.save_pickle(critical_queries, args_save_path + "critical_queries.pkl")
+        u.save_json(final_predictions, args_save_path +
+                    "final_predictions.json")
+        u.save_pickle(critical_queries, args_save_path +
+                      "critical_queries.pkl")
     if args_learn_path is not None:
         # currently unsupported
         # u.save_json(args_archive, args_learn_path)
