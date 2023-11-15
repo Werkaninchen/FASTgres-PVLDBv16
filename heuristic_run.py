@@ -66,7 +66,7 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
         hint_list = orderBySpeed(query_dict, hint_list)
 
     end = time.time()
-    query_dict["avrgTOT"]["runtime"] = end-start
+    query_dict["runtime"] = end-start
     u.save_json(query_dict, save)
 
     # TODO: decide if calling remove hints is advantageous
