@@ -12,7 +12,7 @@ import math
 def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: bool, reduced: bool, single: bool, threshold: float):
     queries = u.get_queries(path)
 
-    random.shuffle(queries)
+    # random.shuffle(queries)
     # run for all hints on (default)
 
     # speedup to default > 2 -> remove hint
@@ -63,7 +63,7 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
         # if stable or len(hint_list) <= 5:
         #     continue
 
-        hint_list = orderBySpeed(query_dict, hint_list)
+        # hint_list = orderBySpeed(query_dict, hint_list)
 
     end = time.time()
     query_dict["runtime"] = end-start
