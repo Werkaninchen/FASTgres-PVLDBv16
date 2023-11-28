@@ -91,7 +91,7 @@ def excedesSpeedTheshholdAbs(query_dict: dict, queryIdx: str, hintSet: int, thre
     return improvement >= threshhold
 
 
-def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300, threshold=1000):
+def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300, threshold=1000, thresholAbs=1000):
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
     best_hint = None
 
@@ -145,8 +145,12 @@ def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_overri
         print('Adjusted Timeout with Query: {}, Hint Set: {}, Time: {}'
               .format(query, u.int_to_binary(hint_set_int), query_hint_time))
         # if faster than 1.5x base break
-        if excedesSpeedTheshhold(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=threshold):
-            print("exceded ", threshold, "x threshold")
+        # if excedesSpeedTheshhold(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=threshold):
+        #     print("exceded ", threshold, " threshold")
+        #     break
+        #  if  faster than abs seeddup
+        if excedesSpeedTheshholdAbs(query_dict=query_dict, queryIdx=query, hintSet=hint_set_int, threshhold=threshold):
+            print("exceded ", threshold, " threshold")
             break
     query_dict[query]['opt'] = best_hint
     return query_dict
