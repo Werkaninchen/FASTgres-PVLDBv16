@@ -79,6 +79,18 @@ def excedesSpeedTheshhold(query_dict: dict, queryIdx: str, hintSet: int, threshh
     return improvement >= threshhold
 
 
+def excedesSpeedTheshholdAbs(query_dict: dict, queryIdx: str, hintSet: int, threshhold: float):
+    base_dict = speedup.getBaseFromDict(query_dict)
+
+    if queryIdx == 2 ** len(HintSet.operators)-1:
+        return False
+
+    improvement = speedup.getSpeedupReal(
+        base_dict, queryIdx, query_dict[queryIdx][hintSet])
+    print(improvement)
+    return improvement >= threshhold
+
+
 def get_best_hint_single(path, query, conn_str, query_dict, reduced, hint_override=[], timeout=300, threshold=1000):
     # standard timeout of 5 minutes should suffice as pg opt is at max 2.2 minutes on other evals
     best_hint = None
