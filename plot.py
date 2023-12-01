@@ -38,7 +38,7 @@ def plot(context: str):
             continue
         opt_levels.append(key.split(".sql")[0])
 
-    opt_levels.sort(key=natural_sort_key)
+    # opt_levels.sort(key=natural_sort_key)
     labelsize = 8
     color = '#3c3c3b'
     background_color = '#ececec'

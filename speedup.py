@@ -35,12 +35,8 @@ def getSpeedupReal(base: dict, query: str, val: float):
     return base[query] - val
 
 
-def getSpeedupPerc(base: dict, query: str, val: float):
-
-    if (val / base[query])-1 != 0:
-
-        return -1 / ((val / base[query])-1)
-    return 0
+def getSpeedupFactor(base: dict, query: str, val: float):
+    return (base[query] / val)
 
 
 def calcSpeedups(db: str):
@@ -67,7 +63,7 @@ def calcSpeedups(db: str):
 
         else:
             best = inner_dict[str(inner_dict["opt"])]
-            speedupPerc = getSpeedupPerc(
+            speedupPerc = getSpeedupFactor(
                 job_base, key, best)
             speedupAbs = getSpeedupReal(
                 job_base, key, best)

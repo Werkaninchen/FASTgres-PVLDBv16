@@ -93,7 +93,7 @@ def orderBySpeed(query_dict: dict, hint_list: list):
             if not i in query_dict[queryIdx]:
                 continue
 
-            improvement = speedup.getSpeedupPerc(
+            improvement = speedup.getSpeedupFactor(
                 base_dict, queryIdx, query_dict[queryIdx][i])
 
             new_hint_set[i] = {

@@ -73,7 +73,7 @@ def excedesSpeedTheshhold(query_dict: dict, queryIdx: str, hintSet: int, threshh
     if queryIdx == 2 ** len(HintSet.operators)-1:
         return False
 
-    improvement = speedup.getSpeedupPerc(
+    improvement = speedup.getSpeedupFactor(
         base_dict, queryIdx, query_dict[queryIdx][hintSet])
     print(improvement)
     return improvement >= threshhold
