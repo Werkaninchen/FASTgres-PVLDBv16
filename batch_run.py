@@ -64,7 +64,7 @@ def run_abs():
 
     for i in items:
         context = "TPC-H"
-        threshold = i/10
+        threshold=i
         print("running for threshold", threshold)
         path = "queries/tpch/"
 
@@ -81,7 +81,7 @@ def run_abs():
 
     for i in items:
         context = "JOB"
-        threshold = i/10
+        threshold = i
         print("running for threshold", threshold)
         path = "queries/job_queries/"
 
@@ -98,7 +98,6 @@ def run_abs():
 
     # for i in range(15, 40, 5):
     #     context = "Stack"
-    #     threshold = i/10
     #     print("running for threshold", threshold)
     #     path = "queries/stack/context_10/"
 
