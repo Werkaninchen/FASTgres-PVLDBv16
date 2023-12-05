@@ -40,7 +40,8 @@ def run_heuristic(path, save, conn_str, strategy, query_dict,  static_timeout: b
 
         if not 2**len(HintSet.operators)-1 in hint_list:
             hint_list.append((2**len(HintSet.operators))-1)
-
+        u.evaluate_hinted_query(
+            path, query, HintSet((2**len(HintSet.operators))-1), conn_str, 300)
         query_dict = gl.get_best_hint_single(
             path, query, conn_str, query_dict, reduced, hint_list, threshold=threshold)
 
